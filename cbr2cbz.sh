@@ -99,6 +99,24 @@ cleanup() {
 # Set up cleanup on exit
 trap cleanup EXIT
 
+cleanup_after_convert() {
+    local cbr_file="$1"
+    local cbz_file="$2"
+
+    # Preserve file timestamps
+    touch -r "$cbr_file" "$cbz_file"
+
+    # Remove original file if cleanup is enabled
+    if [[ "$CLEANUP" == true ]]; then
+        echo -n "Removing original file... "
+        if rm -f "$cbr_file"; then
+            echo "OK"
+        else
+            echo "WARNING: Failed to remove $cbr_file" >&2
+        fi
+    fi
+}
+
 # Function to process a single CBR file
 process_cbr_file() {
     local cbr_file="$1"
@@ -120,6 +138,13 @@ process_cbr_file() {
     fi
 
     echo "Processing: $cbr_file"
+
+    if `file ${cbr_file} | grep -q "Zip archive data"`; then
+        echo "Skipping (already CBZ): $cbr_file - copying to $cbz_file"
+        cp "$cbr_file" "$cbz_file"
+        cleanup_after_convert "$cbr_file" "$cbz_file"
+        return 1
+    fi
 
     local temp_dir=$(mktemp -d -t cbr2cbz_XXXXXXXXXX)
     TEMP_DIRS+=("$temp_dir")
@@ -144,18 +169,7 @@ process_cbr_file() {
         return 1
     fi
 
-    # Preserve file timestamps
-    touch -r "$cbr_file" "$cbz_file"
-
-    # Remove original file if cleanup is enabled
-    if [[ "$CLEANUP" == true ]]; then
-        echo -n "Removing original file... "
-        if rm -f "$cbr_file"; then
-            echo "OK"
-        else
-            echo "WARNING: Failed to remove $cbr_file" >&2
-        fi
-    fi
+    cleanup_after_convert "$cbr_file" "$cbz_file"
 
     echo "Created: $cbz_file"
     rm -rf "$temp_dir"
