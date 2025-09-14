@@ -121,6 +121,12 @@ process_cbr_file() {
 
     echo "Processing: $cbr_file"
 
+    if `file ${cbr_file} | grep -q "Zip archive data"`; then
+        echo "Skipping (already CBZ): $cbr_file - copying to $cbz_file"
+        cp "$cbr_file" "$cbz_file"
+        return 1
+    fi
+
     local temp_dir=$(mktemp -d -t cbr2cbz_XXXXXXXXXX)
     TEMP_DIRS+=("$temp_dir")
 
