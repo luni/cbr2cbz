@@ -75,9 +75,16 @@ Use the `-j` or `--jobs` option to specify the number of parallel jobs (defaults
 
 Use `-i` or `--comicinfo` to add a metadata XML file into the output archive as `ComicInfo.xml`.
 This option is supported only when processing a single input file.
+If the archive already contains `ComicInfo.xml`, the script asks whether to overwrite it.
 
 ```bash
 ./cbr2cbz.sh -i ./ComicInfo.xml ./issue_001.cbr
+```
+
+To skip the overwrite prompt and always replace an existing `ComicInfo.xml`, add:
+
+```bash
+./cbr2cbz.sh -i ./ComicInfo.xml --comicinfo-overwrite ./issue_001.cbr
 ```
 
 ### Cleanup Original Files

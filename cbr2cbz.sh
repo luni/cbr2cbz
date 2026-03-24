@@ -13,6 +13,7 @@ print_usage() {
     echo "  -c, --cleanup    Remove original CBR files after successful conversion"
     echo "  -j, --jobs N     Number of parallel jobs (default: number of processors)"
     echo "  -i, --comicinfo  Inject XML metadata file as ComicInfo.xml (single file mode only)"
+    echo "      --comicinfo-overwrite  Overwrite existing ComicInfo.xml without prompting"
     echo "  -h, --help       Show this help message"
     echo ""
     echo "Examples:"
@@ -39,6 +40,7 @@ RECURSIVE=false
 CLEANUP=false
 JOBS=$NUM_CPUS
 COMICINFO_FILE=""
+COMICINFO_OVERWRITE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -71,6 +73,10 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --comicinfo requires a file path argument" >&2
                 exit 1
             fi
+            ;;
+        --comicinfo-overwrite)
+            COMICINFO_OVERWRITE=true
+            shift
             ;;
         --)
             shift
@@ -188,9 +194,28 @@ process_cbr_file() {
     fi
 
     if [[ -n "$COMICINFO_FILE" ]]; then
-        if ! cp -- "$COMICINFO_FILE" "$temp_dir/ComicInfo.xml"; then
-            echo "Error: Failed to inject ComicInfo.xml into archive for $cbr_file" >&2
-            return 1
+        local inject_comicinfo=true
+        if [[ -f "$temp_dir/ComicInfo.xml" && "$COMICINFO_OVERWRITE" != true ]]; then
+            if [[ -t 0 ]]; then
+                local reply
+                printf "ComicInfo.xml already exists in archive for '%s'. Overwrite? [y/N]: " "$cbr_file" >&2
+                read -r reply
+                if [[ ! "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+                    echo "Skipping: kept existing ComicInfo.xml in archive for $cbr_file"
+                    inject_comicinfo=false
+                fi
+            else
+                echo "Error: ComicInfo.xml already exists in archive for $cbr_file." >&2
+                echo "Run with --comicinfo-overwrite to overwrite without prompting." >&2
+                return 1
+            fi
+        fi
+
+        if [[ "$inject_comicinfo" == true ]]; then
+            if ! cp -- "$COMICINFO_FILE" "$temp_dir/ComicInfo.xml"; then
+                echo "Error: Failed to inject ComicInfo.xml into archive for $cbr_file" >&2
+                return 1
+            fi
         fi
     fi
 
