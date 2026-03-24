@@ -12,6 +12,7 @@ print_usage() {
     echo "  -r, --recursive  Process directories recursively"
     echo "  -c, --cleanup    Remove original CBR files after successful conversion"
     echo "  -j, --jobs N     Number of parallel jobs (default: number of processors)"
+    echo "  -i, --comicinfo  Inject XML metadata file as ComicInfo.xml (single file mode only)"
     echo "  -h, --help       Show this help message"
     echo ""
     echo "Examples:"
@@ -37,6 +38,7 @@ NUM_CPUS=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 RECURSIVE=false
 CLEANUP=false
 JOBS=$NUM_CPUS
+COMICINFO_FILE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -58,6 +60,15 @@ while [[ $# -gt 0 ]]; do
                 shift 2
             else
                 echo "Error: --jobs requires an integer argument >= 1" >&2
+                exit 1
+            fi
+            ;;
+        -i|--comicinfo)
+            if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+                COMICINFO_FILE="$2"
+                shift 2
+            else
+                echo "Error: --comicinfo requires a file path argument" >&2
                 exit 1
             fi
             ;;
@@ -83,6 +94,11 @@ if [[ $# -ne 1 ]]; then
 fi
 
 INPUT="$1"
+
+if [[ -n "$COMICINFO_FILE" && ! -f "$COMICINFO_FILE" ]]; then
+    echo "Error: ComicInfo file not found: $COMICINFO_FILE" >&2
+    exit 1
+fi
 
 # Global array to track temporary directories
 declare -a TEMP_DIRS
@@ -146,7 +162,7 @@ process_cbr_file() {
 
     echo "Processing: $cbr_file"
 
-    if file -- "$cbr_file" | grep -q "Zip archive data"; then
+    if [[ -z "$COMICINFO_FILE" ]] && file -- "$cbr_file" | grep -q "Zip archive data"; then
         echo "Skipping (already CBZ): $cbr_file - copying to $cbz_file"
         if ! cp "$cbr_file" "$cbz_file"; then
             echo "Error: Failed to copy $cbr_file to $cbz_file" >&2
@@ -169,6 +185,13 @@ process_cbr_file() {
     if ! (cd "$temp_dir" && unrar x -o+ -ep -inul "$cbr_abs_path"); then
         echo "FAILED (unrar error)"
         return 1
+    fi
+
+    if [[ -n "$COMICINFO_FILE" ]]; then
+        if ! cp -- "$COMICINFO_FILE" "$temp_dir/ComicInfo.xml"; then
+            echo "Error: Failed to inject ComicInfo.xml into archive for $cbr_file" >&2
+            return 1
+        fi
     fi
 
     # Create CBZ
@@ -265,6 +288,10 @@ if [[ -f "$INPUT" ]]; then
     # Process single file
     process_cbr_file "$INPUT"
 elif [[ -d "$INPUT" ]]; then
+    if [[ -n "$COMICINFO_FILE" ]]; then
+        echo "Error: --comicinfo is only supported when processing a single CBR file" >&2
+        exit 1
+    fi
     # Process directory
     process_directory "$INPUT"
 else

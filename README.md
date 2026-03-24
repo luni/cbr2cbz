@@ -1,25 +1,13 @@
 # cbr2cbz
 
-A fast and reliable CBR to CBZ conversion tool for GNU/Linux, written in pure bash.
-
-
-## Features
-
-- 🚀 Single bash script
-- 🔄 Handles both single files and directories
-- 🔍 Recursive directory processing
-- ⚡ Parallel processing for maximum performance
-- ✅ Preserves file timestamps
-- 🛡️ Handles filenames with spaces and special characters
-- 📊 Shows progress when processing multiple files
-- 🔄 Automatically skips already converted files
-- 🗑️ Optional cleanup of original CBR files after conversion
+A fast and reliable CBR to CBZ conversion tool for GNU/Linux, written in pure bash, with support for single-file and directory processing (including recursive and parallel workflows). It preserves timestamps, handles tricky filenames, skips already converted files, supports optional cleanup, and can inject `ComicInfo.xml` metadata during single-file conversion.
 
 ## Requirements
 
 - A GNU/Linux distribution (tested on Ubuntu)
 - `unrar-nonfree` for RAR5+ support and `zip` for creating CBZ files
 - `nproc` or `getconf` for CPU detection (usually pre-installed)
+
   ```bash
   sudo apt-get install unrar-nonfree zip
   ```
@@ -28,10 +16,13 @@ A fast and reliable CBR to CBZ conversion tool for GNU/Linux, written in pure ba
 
 1. Clone this repository or download the `cbr2cbz.sh` script
 2. Make it executable:
+
    ```bash
    chmod +x cbr2cbz.sh
    ```
+
 3. (Optional) Move it to your PATH, for example:
+
    ```bash
    sudo mv cbr2cbz.sh /usr/local/bin/cbr2cbz
    ```
@@ -39,22 +30,33 @@ A fast and reliable CBR to CBZ conversion tool for GNU/Linux, written in pure ba
 ## Usage
 
 ### Convert a single CBR file
+
 ```bash
 ./cbr2cbz.sh file.cbr
 ```
 
+### Convert a single CBR file and inject `ComicInfo.xml`
+
+```bash
+./cbr2cbz.sh --comicinfo /path/to/ComicInfo.xml file.cbr
+```
+
 ### Convert all CBR files in a directory
+
 ```bash
 ./cbr2cbz.sh /path/to/comics
 ```
 
 ### Convert recursively through subdirectories
+
 ```bash
 ./cbr2cbz.sh -r /path/to/comics
 ```
 
 ### Process files in parallel
+
 Use the `-j` or `--jobs` option to specify the number of parallel jobs (defaults to number of CPU cores):
+
 ```bash
 # Use 4 parallel jobs
 ./cbr2cbz.sh -j 4 /path/to/comics
@@ -64,8 +66,18 @@ Use the `-j` or `--jobs` option to specify the number of parallel jobs (defaults
 ```
 
 ### Show help
+
 ```bash
 ./cbr2cbz.sh --help
+```
+
+### Inject ComicInfo Metadata
+
+Use `-i` or `--comicinfo` to add a metadata XML file into the output archive as `ComicInfo.xml`.
+This option is supported only when processing a single input file.
+
+```bash
+./cbr2cbz.sh -i ./ComicInfo.xml ./issue_001.cbr
 ```
 
 ### Cleanup Original Files
@@ -92,6 +104,7 @@ To automatically remove the original CBR files after successful conversion, use 
 3. For each file:
    - Creates a temporary directory
    - Extracts the CBR (RAR) file contents using `unrar`
+   - Optionally injects `ComicInfo.xml` when `--comicinfo` is used in single-file mode
    - Creates a new CBZ (ZIP) file with the same name
    - Preserves the original file's modification timestamp
    - If `--cleanup` is specified, removes the original CBR file
@@ -109,6 +122,7 @@ To automatically remove the original CBR files after successful conversion, use 
 This project is licensed under the MIT License
 
 ## Thanks to
+
 This repository is based on the original work from [oogg06/cbr2cbz](https://github.com/oogg06/cbr2cbz).
 
 ## Contributing
