@@ -23,7 +23,7 @@ print_usage() {
 }
 
 # Check if required commands are available
-for cmd in unrar zip; do
+for cmd in unrar zip file realpath; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Error: '$cmd' is required but not installed." >&2
         exit 1
@@ -53,11 +53,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -j|--jobs)
-            if [[ "$2" =~ ^[0-9]+$ ]]; then
+            if [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
                 JOBS="$2"
                 shift 2
             else
-                echo "Error: --jobs requires a numeric argument" >&2
+                echo "Error: --jobs requires an integer argument >= 1" >&2
                 exit 1
             fi
             ;;
@@ -104,7 +104,10 @@ cleanup_after_convert() {
     local cbz_file="$2"
 
     # Preserve file timestamps
-    touch -r "$cbr_file" "$cbz_file"
+    if ! touch -r "$cbr_file" "$cbz_file"; then
+        echo "Error: Failed to preserve timestamp for $cbz_file" >&2
+        return 1
+    fi
 
     # Remove original file if cleanup is enabled
     if [[ "$CLEANUP" == true ]]; then
@@ -112,9 +115,13 @@ cleanup_after_convert() {
         if rm -f "$cbr_file"; then
             echo "OK"
         else
-            echo "WARNING: Failed to remove $cbr_file" >&2
+            echo "FAILED" >&2
+            echo "Error: Failed to remove $cbr_file" >&2
+            return 1
         fi
     fi
+
+    return 0
 }
 
 # Function to process a single CBR file
@@ -139,11 +146,18 @@ process_cbr_file() {
 
     echo "Processing: $cbr_file"
 
-    if `file ${cbr_file} | grep -q "Zip archive data"`; then
+    if file -- "$cbr_file" | grep -q "Zip archive data"; then
         echo "Skipping (already CBZ): $cbr_file - copying to $cbz_file"
-        cp "$cbr_file" "$cbz_file"
-        cleanup_after_convert "$cbr_file" "$cbz_file"
-        return 1
+        if ! cp "$cbr_file" "$cbz_file"; then
+            echo "Error: Failed to copy $cbr_file to $cbz_file" >&2
+            return 1
+        fi
+
+        if ! cleanup_after_convert "$cbr_file" "$cbz_file"; then
+            return 1
+        fi
+
+        return 0
     fi
 
     local temp_dir=$(mktemp -d -t cbr2cbz_XXXXXXXXXX)
